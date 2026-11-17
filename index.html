@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Entregas – Mensajes</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#eef2f4;--card:#fff;--ink:#14232b;--mut:#5d6f78;--line:#d3dde2;--acc:#0b6e4f;--acc2:#e8f3ee;--warn:#b4531a}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#10181c;--card:#18242a;--ink:#e6eef1;--mut:#92a5ae;--line:#2b3b43;--acc:#3fbf8f;--acc2:#16322a;--warn:#e69a62}}
+:root[data-theme="dark"]{--bg:#10181c;--card:#18242a;--ink:#e6eef1;--mut:#92a5ae;--line:#2b3b43;--acc:#3fbf8f;--acc2:#16322a;--warn:#e69a62}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:640px;margin:0 auto;padding:16px}
+h1{font-size:1.4rem;margin:8px 0 2px}
+h2{font-size:1rem;margin:0 0 10px}
+p.s{color:var(--mut);margin:0 0 16px;font-size:.92rem}
+section{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px;margin-bottom:14px}
+label{display:block;font-size:.85rem;color:var(--mut);margin:8px 0 3px}
+input,textarea{width:100%;font:inherit;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px}
+textarea{min-height:110px;resize:vertical}
+input:focus,textarea:focus,button:focus-visible,a:focus-visible{outline:2px solid var(--acc);outline-offset:1px}
+.chk{display:flex;align-items:center;gap:8px;margin-top:10px;color:var(--ink);font-size:1rem}
+.chk input{width:20px;height:20px}
+button,.go{font:inherit;font-weight:600;border:0;border-radius:8px;padding:11px 14px;cursor:pointer;background:var(--acc);color:#fff;text-decoration:none;display:inline-block;text-align:center}
+button.alt{background:transparent;color:var(--mut);border:1px solid var(--line);font-weight:500;padding:8px 10px}
+.full{width:100%;margin-top:12px}
+.item{display:flex;gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.item:first-of-type{border-top:0}
+.info{flex:1;min-width:0}
+.nm{font-weight:600;overflow-wrap:anywhere}
+.mt{font-size:.85rem;color:var(--mut)}
+.tag{display:inline-block;font-size:.78rem;padding:1px 7px;border-radius:99px;background:var(--acc2);color:var(--acc)}
+.tag.p{background:transparent;border:1px solid var(--warn);color:var(--warn)}
+.item.done{opacity:.55}
+.item.done .go{background:var(--line);color:var(--ink)}
+.go.wait{background:var(--line);color:var(--mut);pointer-events:none}
+.top{display:flex;justify-content:space-between;align-items:center;gap:6px;flex-wrap:wrap}
+.err{color:var(--warn);font-size:.88rem;min-height:1.2em;margin-top:6px}
+.empty{color:var(--mut);padding:8px 0}
+.pm{white-space:pre-wrap;margin-top:4px;color:var(--ink)}
+summary{cursor:pointer}
+.bar{background:var(--acc2);color:var(--ink);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:.9rem;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.bar.hot{background:transparent;border:1px solid var(--warn);color:var(--warn)}
+</style>
+</head>
+<body>
+<main>
+<h1>Mensajes de entrega</h1>
+<p class="s">Cada mensaje se arma con frases distintas. Entre un envío y otro la página te hace esperar unos minutos.</p>
+
+<section>
+<h2>Horario de entrega</h2>
+<label for="cd">Día</label>
+<input id="cd" autocomplete="off">
+<label for="ca">Desde</label>
+<input id="ca" autocomplete="off">
+<label for="cb">Hasta</label>
+<input id="cb" autocomplete="off">
+</section>
+
+<section>
+<h2>Pegar lista</h2>
+<textarea id="bulk" placeholder="Juan Pérez 3001234567&#10;María Gómez 3109876543 RCE 25.000"></textarea>
+<p class="mt">Una persona por línea. Si trae "RCE" o un valor, se marca que paga.</p>
+<button class="full" id="load">Cargar lista</button>
+<div class="err" id="err" role="alert"></div>
+</section>
+
+<section>
+<div class="top"><h2>Lista de hoy</h2><div><button class="alt" id="copy">Copiar lista</button> <button class="alt" id="clear">Vaciar</button></div></div>
+<div class="bar" id="bar"></div>
+<div id="list"></div>
+<div class="err" id="cmsg" role="status"></div>
+</section>
+
+<section>
+<h2>Agregar una persona</h2>
+<label for="nombre">Nombre</label>
+<input id="nombre" autocomplete="off">
+<label for="tel">Celular</label>
+<input id="tel" type="tel" inputmode="tel" autocomplete="off" placeholder="3001234567">
+<label class="chk"><input type="checkbox" id="paga"> Debe pagar</label>
+<div id="vbox" hidden>
+<label for="valor">Valor a pagar</label>
+<input id="valor" inputmode="numeric" placeholder="25000">
+</div>
+<button class="full" id="add">Agregar</button>
+</section>
+</main>
+
+<script>
+var V={
+g:["Hola, {n}.","Buen día, {n}.","Hola {n}, buen día.","Buenas, {n}.","Hola {n}.","Hola, {n}, ¿cómo está?","Cordial saludo, {n}.","Hola {n}, espero que esté bien."],
+i:["Soy trabajador de Coordinadora y tengo un paquete para entregarle {d} de {a} a {b}, sujeto al clima.",
+"Le escribo de Coordinadora: tengo un paquete suyo para entregar {d} de {a} a {b}, sujeto al clima.",
+"Soy mensajero de Coordinadora y tengo un paquete para usted, que entregaré {d} de {a} a {b}, sujeto al clima.",
+"Tengo un paquete suyo de Coordinadora para entregar {d} de {a} a {b}, siempre que el clima lo permita.",
+"Le hablo de Coordinadora. Tengo un paquete a su nombre y puedo entregárselo {d} de {a} a {b}, si el clima lo permite.",
+"De parte de Coordinadora: tengo un paquete para usted. Estaré entregando {d} de {a} a {b}, sujeto al clima.",
+"Soy de Coordinadora y tengo un paquete para entregarle {d}, entre {a} y {b}, sujeto al clima.",
+"{D} entre {a} y {b} estaré haciendo entregas, sujeto al clima. Le escribo de Coordinadora porque tengo un paquete para usted."],
+p:["💰 Valor a pagar: {v}","💰 Valor pendiente: {v}","💰 El paquete tiene un valor a pagar de {v}","💰 Total a pagar: {v}","💰 Valor a cancelar: {v}"],
+q:["¿Pagará en efectivo o transferencia? Si elige transferencia, le comparto el enlace de pago. Para efectivo, por favor tenga el valor exacto o dinero sencillo.",
+"¿Pagará en efectivo o por transferencia? Si es transferencia, le envío el enlace de pago. Si es efectivo, tenga el valor exacto o sencillo, por favor.",
+"¿Cómo pagará, efectivo o transferencia? Para transferencia le comparto el enlace de pago. Para efectivo, por favor tenga el dinero exacto o sencillo.",
+"¿Prefiere pagar en efectivo o por transferencia? Con transferencia le paso el enlace de pago; en efectivo, por favor tenga el valor exacto o billetes pequeños.",
+"El pago puede ser en efectivo o transferencia. Si es transferencia le comparto el enlace; si es efectivo, tenga el valor exacto o dinero sencillo."],
+c:["¿Me confirma si estará en casa? Si no recibo respuesta, el paquete tendrá que ser devuelto.",
+"Por favor confírmeme si estará en casa. Si no recibo respuesta, el paquete será devuelto.",
+"¿Me confirma si habrá alguien en casa? Si no recibo respuesta, tendré que devolver el paquete.",
+"Por favor responda para confirmar que estará en casa. Si no recibo respuesta, el paquete tendrá que ser devuelto.",
+"¿Estará en casa para recibirlo? Necesito su confirmación; sin respuesta, el paquete se devuelve.",
+"Confírmeme por favor si podrá recibirlo. Si no hay respuesta, tendré que devolver el paquete.",
+"¿Podría confirmarme si estará en el domicilio? De no recibir respuesta, el paquete será devuelto.",
+"Avíseme si estará en casa para recibirlo. Sin respuesta, el paquete tendrá que ser devuelto."],
+cp:["Confírmeme si estará en casa. Si no recibo respuesta, el paquete tendrá que ser devuelto.",
+"Por favor confírmeme si estará en casa. Si no recibo respuesta, el paquete será devuelto.",
+"Confírmeme si habrá alguien en casa. Si no recibo respuesta, tendré que devolver el paquete.",
+"Avíseme si estará en casa para recibirlo. Sin respuesta, el paquete tendrá que ser devuelto.",
+"Por favor confirme que estará en casa; si no recibo respuesta, el paquete será devuelto.",
+"Necesito que me confirme si podrá recibirlo. Si no hay respuesta, tendré que devolver el paquete."],
+t:["¡Gracias!","Muchas gracias.","Quedo atento, ¡gracias!","¡Gracias de antemano!","Gracias por su atención.","Quedo pendiente, gracias.","Mil gracias."]
+};
+var $=function(i){return document.getElementById(i)};
+function load(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+var items=load("items2",[]);
+var cfg=load("cfg",null)||{d:"hoy",a:"2:00 p. m.",b:"5:00 p. m."};
+var nextAt=load("nextAt",0);
+$("cd").value=cfg.d;$("ca").value=cfg.a;$("cb").value=cfg.b;
+["d","a","b"].forEach(function(k){$("c"+k).oninput=function(){cfg[k]=this.value;save("cfg",cfg)}});
+
+function money(v){var n=parseInt((v||"").replace(/\D/g,""),10);return n?"$"+n.toLocaleString("es-CO"):"el valor acordado"}
+function fill(t,it){
+var d=cfg.d||"hoy";
+return t.replace(/\{n\}/g,it.nombre).replace(/\{D\}/g,d.charAt(0).toUpperCase()+d.slice(1)).replace(/\{d\}/g,d.toLowerCase()).replace(/\{a\}/g,cfg.a).replace(/\{b\}/g,cfg.b).replace(/\{v\}/g,money(it.valor));
+}
+var KEYS=["g","i","p","q","c","cp","t"];
+/* Elige una variante por parte; no repite las usadas por las últimas personas de la lista. */
+function pickAll(recent,old){
+var v={};
+KEYS.forEach(function(k){
+var n=V[k].length,avoid=[],j;
+recent.slice(-Math.min(3,n-1)).forEach(function(x){if(x.v&&x.v[k]!=null)avoid.push(x.v[k])});
+if(old&&old[k]!=null)avoid.push(old[k]);
+var idx,tries=0;
+do{idx=Math.floor(Math.random()*n);tries++}while(avoid.indexOf(idx)>=0&&tries<50);
+v[k]=idx;
+});
+v.sp=Math.floor(Math.random()*2);v.th=Math.floor(Math.random()*2);
+return v;
+}
+/* El mensaje depende de las variantes guardadas en la persona: no cambia al recargar; ↻ elige otras. */
+function build(it){
+if(!it.v)it.v=pickAll([]);
+var v=it.v;
+function g(k){return V[k][v[k]%V[k].length]}
+var sep="\n\n",th=v.th?" ":"\n\n";
+var parts=[fill(g("g")+" "+g("i"),it)];
+if(it.paga){parts.push(fill(g("p"),it)+sep+fill(g("q"),it));parts.push(fill(g("cp"),it)+th+g("t"))}
+else parts.push(fill(g("c"),it)+th+g("t"));
+return parts.join(sep);
+}
+function fixTel(t){var d=(t||"").replace(/\D/g,"");if(d.indexOf("57")===0&&d.length===12)return d;if(d.length===10)return "57"+d;return null}
+function mk(n,t,paga,valor){return{nombre:n,tel:t,paga:paga,valor:valor||"",ok:false,v:pickAll(items)}}
+function esc(s){return s.replace(/[&<>"]/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
+
+function render(){
+var h="";
+if(!items.length)h='<div class="empty">Aún no hay entregas. Pega tu lista arriba.</div>';
+items.forEach(function(it,i){
+h+='<div class="item'+(it.ok?" done":"")+'"><div class="info"><div class="nm">'+esc(it.nombre)+'</div>'+
+'<div class="mt">'+it.tel.slice(2)+' · <span class="tag'+(it.paga?" p":"")+'">'+(it.paga?"Paga "+esc(money(it.valor)):"No paga")+'</span></div>'+
+'<details><summary class="mt">Ver mensaje</summary><div class="mt pm">'+esc(build(it))+'</div></details></div>'+
+'<button class="alt" data-r="'+i+'" aria-label="Cambiar mensaje de '+esc(it.nombre)+'">↻</button>'+
+'<a class="go" target="_blank" rel="noopener" data-i="'+i+'" href="https://wa.me/'+it.tel+'?text='+encodeURIComponent(build(it))+'">'+(it.ok?"Reenviar":"Enviar")+'</a>'+
+'<button class="alt" data-x="'+i+'" aria-label="Quitar '+esc(it.nombre)+'">✕</button></div>';
+});
+$("list").innerHTML=h;
+tick();
+}
+function tick(){
+var left=Math.ceil((nextAt-Date.now())/1000),sent=items.filter(function(x){return x.ok}).length;
+var wait=left>0;
+var txt="Enviados hoy: "+sent+(sent>=10?" · ya son muchos, mejor sigue mañana":"");
+var html='<span>'+txt+(wait?" · Próximo envío en "+Math.floor(left/60)+":"+("0"+left%60).slice(-2):"")+'</span>'+(wait?'<button class="alt" id="skip">Saltar espera</button>':"");
+var bar=$("bar");
+if(bar.dataset.h!==html){bar.innerHTML=html;bar.dataset.h=html}
+bar.className="bar"+(sent>=10?" hot":"");
+var sk=$("skip");if(sk)sk.onclick=function(){nextAt=0;save("nextAt",0);tick()};
+var links=document.querySelectorAll("a.go");
+for(var k=0;k<links.length;k++)links[k].classList.toggle("wait",wait);
+}
+setInterval(tick,1000);
+
+$("list").onclick=function(e){
+var a=e.target.closest("a.go"),x=e.target.closest("button[data-x]"),r=e.target.closest("button[data-r]");
+if(a){
+if(nextAt-Date.now()>0){e.preventDefault();return}
+items[+a.dataset.i].ok=true;
+nextAt=Date.now()+180000+Math.floor(Math.random()*120000);
+save("nextAt",nextAt);save("items2",items);setTimeout(render,300);
+}
+if(x){items.splice(+x.dataset.x,1);save("items2",items);render()}
+if(r){var it=items[+r.dataset.r];it.v=pickAll(items.filter(function(x){return x!==it}),it.v);save("items2",items);render()}
+};
+$("paga").onchange=function(){$("vbox").hidden=!this.checked};
+$("load").onclick=function(){
+var lines=$("bulk").value.split("\n"),n=0,bad=[];
+lines.forEach(function(l){
+l=l.replace(/^\s*(\[.?\]|[-*•])\s*/,"").trim();if(!l)return;
+var m=l.match(/^(.*?)\s*(?:\+?57)?\s*(3\d{2})[\s-]?(\d{3})[\s-]?(\d{4})\s*(.*)$/);
+if(!m||!m[1].trim()){bad.push(l);return}
+var rest=m[5]||"",digits=rest.replace(/\D/g,""),paga=(/RCE|paga/i.test(rest)&&!/no\s*paga/i.test(rest))||digits.length>0;
+items.push(mk(m[1].trim(),"57"+m[2]+m[3]+m[4],paga,digits));n++;
+});
+save("items2",items);render();
+$("err").textContent=bad.length?("No pude leer: "+bad.join(" | ")):(n?"Cargadas "+n+".":"");
+if(n&&!bad.length)$("bulk").value="";
+};
+$("add").onclick=function(){
+var n=$("nombre").value.trim(),t=fixTel($("tel").value);
+if(!n||!t){$("err").textContent="Revisa el nombre y que el celular tenga 10 dígitos.";return}
+$("err").textContent="";
+items.push(mk(n,t,$("paga").checked,$("valor").value));save("items2",items);
+$("nombre").value="";$("tel").value="";$("paga").checked=false;$("valor").value="";$("vbox").hidden=true;render();
+};
+$("copy").onclick=function(){
+if(!items.length){$("cmsg").textContent="No hay nada para copiar.";return}
+var txt=items.map(function(it){return it.nombre+" "+it.tel.slice(2)}).join("\n");
+function ok(){$("cmsg").style.color="var(--acc)";$("cmsg").textContent="Copiado ("+items.length+")."}
+function fb(){var ta=document.createElement("textarea");ta.value=txt;ta.style.position="fixed";ta.style.opacity="0";document.body.appendChild(ta);ta.select();var r=false;try{r=document.execCommand("copy")}catch(e){}document.body.removeChild(ta);if(r)ok();else window.prompt("Copia el texto:",txt)}
+if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(txt).then(ok,fb)}else fb();
+};
+$("clear").onclick=function(){if(items.length&&confirm("¿Vaciar la lista de hoy?")){items=[];save("items2",items);render()}};
+render();
+</script>
+</body>
+</html>
